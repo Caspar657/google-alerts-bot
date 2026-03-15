@@ -1,0 +1,4 @@
+anthropic>=0.40.0
+feedparser>=6.0.11
+sendgrid>=6.11.0
+python-dotenv>=1.0.0

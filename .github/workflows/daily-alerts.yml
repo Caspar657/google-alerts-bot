@@ -1,0 +1,49 @@
+name: Daily Client Media Briefing
+
+on:
+  schedule:
+    # 7:30 AM AEST (UTC+10). Adjust if on daylight saving (AEDT = UTC+11 → use '30 20 * * *')
+    - cron: '30 21 * * *'
+  workflow_dispatch:  # Lets you trigger a run manually from the GitHub UI
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit seen_articles.json back to the repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SENDGRID_API_KEY:  ${{ secrets.SENDGRID_API_KEY }}
+          TO_EMAIL:          ${{ secrets.TO_EMAIL }}
+          FROM_EMAIL:        ${{ secrets.FROM_EMAIL }}
+          RSS_BAPCOR:            ${{ secrets.RSS_BAPCOR }}
+          RSS_BRISBANE_AIRPORT:  ${{ secrets.RSS_BRISBANE_AIRPORT }}
+          RSS_ADORE_BEAUTY:      ${{ secrets.RSS_ADORE_BEAUTY }}
+          RSS_SPARESBOX:         ${{ secrets.RSS_SPARESBOX }}
+          RSS_REPCO:             ${{ secrets.RSS_REPCO }}
+        run: python main.py
+
+      - name: Persist seen articles
+        # Commits the updated seen_articles.json back to the repo so the next
+        # run doesn't re-process articles it has already seen.
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_articles.json
+          git diff --staged --quiet || git commit -m "chore: update seen articles [skip ci]"
+          git push
