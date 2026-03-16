@@ -6,6 +6,9 @@ on:
     - cron: '30 21 * * *'
   workflow_dispatch:  # Lets you trigger a run manually from the GitHub UI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -36,6 +39,7 @@ jobs:
           RSS_ADORE_BEAUTY:      ${{ secrets.RSS_ADORE_BEAUTY }}
           RSS_SPARESBOX:         ${{ secrets.RSS_SPARESBOX }}
           RSS_REPCO:             ${{ secrets.RSS_REPCO }}
+          RSS_AUTOBARN:          ${{ secrets.RSS_AUTOBARN }}
         run: python main.py
 
       - name: Persist seen articles
