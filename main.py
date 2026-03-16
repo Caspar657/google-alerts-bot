@@ -28,6 +28,7 @@ CLIENTS: dict[str, str | None] = {
     "Adore Beauty":     os.getenv("RSS_ADORE_BEAUTY"),
     "Sparesbox":        os.getenv("RSS_SPARESBOX"),
     "Repco":            os.getenv("RSS_REPCO"),
+    "Autobarn":         os.getenv("RSS_AUTOBARN"),
 }
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
