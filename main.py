@@ -1,19 +1,20 @@
 """
 Google Alerts Bot
 Fetches RSS feeds for client alerts, analyses them with Claude,
-and sends a morning briefing email via SendGrid when interesting news is found.
+and sends a morning briefing email via Gmail SMTP when interesting news is found.
 """
 
 import os
 import json
+import smtplib
 import textwrap
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import feedparser
 import anthropic
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,10 +32,10 @@ CLIENTS: dict[str, str | None] = {
     "Autobarn":         os.getenv("RSS_AUTOBARN"),
 }
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-SENDGRID_API_KEY  = os.getenv("SENDGRID_API_KEY")
-TO_EMAIL          = os.getenv("TO_EMAIL")
-FROM_EMAIL        = os.getenv("FROM_EMAIL")
+ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+TO_EMAIL           = os.getenv("TO_EMAIL")
+FROM_EMAIL         = os.getenv("FROM_EMAIL")
 
 SEEN_ARTICLES_FILE = Path("seen_articles.json")
 
@@ -260,16 +261,16 @@ def send_email(analysis: str, articles_by_client: dict[str, list[dict]]) -> None
     today = datetime.now().strftime("%B %d, %Y")
     html  = build_html_email(analysis, articles_by_client)
 
-    message = Mail(
-        from_email=FROM_EMAIL,
-        to_emails=TO_EMAIL,
-        subject=f"[Client Alerts] Interesting news — {today}",
-        html_content=html,
-    )
+    message = MIMEMultipart("alternative")
+    message["Subject"] = f"[Client Alerts] Interesting news — {today}"
+    message["From"]    = FROM_EMAIL
+    message["To"]      = TO_EMAIL
+    message.attach(MIMEText(html, "html"))
 
-    sg = SendGridAPIClient(SENDGRID_API_KEY)
-    response = sg.send(message)
-    print(f"  Email sent → {TO_EMAIL}  (status {response.status_code})")
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(FROM_EMAIL, GMAIL_APP_PASSWORD)
+        server.sendmail(FROM_EMAIL, TO_EMAIL, message.as_string())
+    print(f"  Email sent → {TO_EMAIL}")
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -280,10 +281,10 @@ def main() -> None:
 
     # Validate config
     missing = [k for k, v in {
-        "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY,
-        "SENDGRID_API_KEY":  SENDGRID_API_KEY,
-        "TO_EMAIL":          TO_EMAIL,
-        "FROM_EMAIL":        FROM_EMAIL,
+        "ANTHROPIC_API_KEY":  ANTHROPIC_API_KEY,
+        "GMAIL_APP_PASSWORD": GMAIL_APP_PASSWORD,
+        "TO_EMAIL":           TO_EMAIL,
+        "FROM_EMAIL":         FROM_EMAIL,
     }.items() if not v]
     if missing:
         raise SystemExit(f"Missing required environment variables: {', '.join(missing)}")
